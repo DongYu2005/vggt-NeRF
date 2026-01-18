@@ -1,0 +1,22 @@
+# --- Fine-tuning Config ---
+expname = vggt_finetune_scan1
+dataset_name = dtu_ft
+datadir = ./data/dtu/scan1
+
+# Training settings
+batch_size = 1024
+num_epochs = 6
+lrate = 5e-4
+
+# VGGT settings
+vggt_ckpt = ./ckpts/VGGT-1B
+freeze_vggt = False
+
+# Rendering / Model options
+use_color_volume = True
+with_rgb_loss = True
+pad = 24
+imgScale_test = 1.0
+
+# Pretrained Checkpoint
+ckpt = './runs_new/vggt_mvs_general_train_v1/ckpts/{epoch:02d}/last-v3.ckpt'

@@ -1,0 +1,18 @@
+# --- General Training Config ---
+expname = vggt_mvs_general_train_v1
+dataset_name = dtu
+datadir = ./data/dtu
+
+# Training settings
+num_epochs = 10
+batch_size = 1
+lrate = 5e-5
+num_workers = 16
+
+# VGGT settings
+vggt_ckpt = ./ckpts/VGGT-1B
+freeze_vggt = True
+
+# Logging & Validation
+val_check_interval = 1.0
+check_val_every_n_epoch = 2

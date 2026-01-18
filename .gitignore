@@ -1,0 +1,26 @@
+# --- 忽略系统文件 ---
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.idea/
+.vscode/
+
+# --- 忽略大数据集和权重 ---
+data/
+ckpts/
+runs*/
+results/
+logs/
+
+# --- 忽略大文件 ---
+*.tar
+*.ckpt
+*.pth
+*.mp4
+*.png
+*.jpg
+*.tfevents*
+
+# --- 保留配置 ---
+!configs/*.txt
