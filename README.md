@@ -118,6 +118,11 @@ python train_vggt_nerf_finetuning_pl.py \
 After training or fine-tuning, you can use the provided notebooks or scripts to render videos.
 
 - Use `renderer_video.ipynb` to generate free-viewpoint videos.
+-
+| Rabbit Scene | Cup Scene |
+| :---: | :---: |
+| <img src="asset/rabbit.gif" width="100%"> | <img src="asset/cup.gif" width="100%"> |
+| *VGGT-NeRF on Rabbit* | *VGGT-NeRF on Cup* |
 ## Citation
 
 If you use this code, please consider citing the original MVSNeRF paper and the VGGT project:
