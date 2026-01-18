@@ -1,144 +1,129 @@
-# MVSNeRF
-## [Project page](https://apchenstu.github.io/mvsnerf/) |  [Paper](https://arxiv.org/abs/2103.15595)
-This repository contains a pytorch lightning implementation for the ICCV 2021 paper: [MVSNeRF: Fast Generalizable Radiance Field Reconstruction from Multi-View Stereo](https://arxiv.org/abs/2103.15595). Our work present a novel neural rendering approach that can efficiently reconstruct
-geometric and neural radiance fields for view synthesis, Moreover, if dense images are captured, our estimated radiance field representation can be easily fine-tuned; this leads to fast per-scene reconstruction.<br><br>
 
-![Pipeline](configs/pipeline.png)
+# VGGT-NeRF: Visual Geometry Grounded Transformer for Generalizable NeRF
+
+## [VGGT Project Page](https://vgg-t.github.io) | [MVSNeRF Original Project](https://apchenstu.github.io/mvsnerf/)
+
+This repository contains the implementation of **VGGT-NeRF**, which improves upon the MVSNeRF framework by introducing Visual Geometry Grounded Transformers for better global consistency and detail recovery in generalizable radiance field reconstruction.
+
+<img width="813" height="188" alt="image" src="https://github.com/user-attachments/assets/6a8ae3d6-ae19-462e-939a-9e859f57ad60" />
+
+**Comparison between MVSNeRF and VGGT-NeRF. VGGT-NeRF demonstrates superior global consistency and depth estimation quality.**
 
 ## Installation
 
-#### Tested on Ubuntu 20.04 + Pytorch 1.10.1 + Pytorch Lignting 1.3.5
+### Environment Setup
+The code is tested on **Ubuntu 20.04 + Pytorch 1.10.1**.
 
-Install environment:
-```
-conda create -n mvsnerf python=3.8
-conda activate mvsnerf
-pip install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+```bash
+conda create -n vggtnerf python=3.8
+conda activate vggtnerf
+pip install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f [https://download.pytorch.org/whl/cu113/torch_stable.html](https://download.pytorch.org/whl/cu113/torch_stable.html)
 pip install pytorch-lightning==1.3.5 imageio pillow scikit-image opencv-python configargparse lpips kornia warmup_scheduler matplotlib test-tube imageio-ffmpeg
+````
+
+## Dataset Preparation
+
+### DTU Dataset
+
+Please download the processed DTU dataset from the link below and unzip it into the `data/` folder.
+
+- **Download Link:** [[dtu数据集_数据集-飞桨AI Studio星河社区](https://aistudio.baidu.com/datasetdetail/28716)]
+    
+- **Path Structure:**
+    
+    Plaintext
+    
+    ```
+    My_VGGT_Project/
+	├── configs/
+	├── ...
+	└── data/
+	    └── dtu/
+	        ├── Cameras/       # Camera parameters
+	        ├── Depths/        # Depth maps
+	        ├── Rectified/     # Input images
+	        └── lists/         # Train/test split lists
+    ```
+
+## Model Checkpoints
+
+We provide pre-trained models and fine-tuned checkpoints. Please download them and place them in the root directory (or unzip the provided package).
+
+- **Download Link:** [权重链接](https://disk.pku.edu.cn/link/AAB4C933556FFB4C2EB7085E240FE6AACC)
+
+After extraction, ensure you have the following folders:
+**Directory Structure:**
+Plaintext
 ```
-
-
+My_VGGT_Project/
+├── ckpts/
+│   └── VGGT-1B                                   # Foundation Model
+│
+├── runs_new/
+│   └── vggt_mvs_general_train_v1/
+│       └── ckpts/
+│           └── epoch=xx/                         # e.g., epoch=09
+│               └── last-v3.ckpt                  # General Training Weight
+│
+└── runs_fine_tuning/
+    └── scan1/
+        └── vggt_finetune_scan1/
+            └── ckpts/
+                └── latest.tar                    # Fine-tuned Weight for Scan1
+```
 ## Training
-Please see each subsection for training on different datasets. Available training datasets:
 
-* [DTU](#dtu)
-* [Blender](#blender) (Realistic Synthetic)
-* [LLFF](#llff) (Real Forward-Facing)
-* [Your own data](#your-own-data) (images/intrinsic/extrinsic/nearfar boundles)
+### 1. Generalization Training (Pre-training)
 
-### DTU dataset
+To train the generalized model across scenes.
 
-#### Data download
+**Option A: Train from scratch**
 
-Download the preprocessed [DTU training data](https://drive.google.com/file/d/1eDjh-_bxKKnEuz5h-HXS7EDJn59clx6V/view)
-and [Depth_raw](https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasMVSNet/dtu_data/dtu_train_hr/Depths_raw.zip) from original [MVSNet repo](https://github.com/YoYo000/MVSNet)
-and unzip. We provide a [DTU example](https://huggingface.co/apchen/MVSNeRF/blob/main/dtu_example.zip), please
-follow the example's folder structure.
-
-#### Training model
-
-Run
-```
-CUDA_VISIBLE_DEVICES=$cuda  python train_mvs_nerf_pl.py \
-   --expname $exp_name
-   --num_epochs 6
-   --use_viewdirs \
-   --dataset_name dtu \
-   --datadir $DTU_DIR
-```
-More options refer to the `opt.py`, training command example:
-```
-CUDA_VISIBLE_DEVICES=0  python train_mvs_nerf_pl.py
-    --with_depth  --imgScale_test 1.0 \
-    --expname mvs-nerf-is-all-your-need \
-    --num_epochs 6 --N_samples 128 --use_viewdirs --batch_size 1024 \
-    --dataset_name dtu \
-    --datadir path/to/dtu/data \
-    --N_vis 6
-```
-
-You may need to add `--with_depth` if you want to quantity depth during training. `--N_vis` denotes the validation frequency.
-`--imgScale_test` is the downsample ratio during validation, like 0.5. The training process takes about 30h on single RTX 2080Ti
-for 6 epochs. 
-
-*Important*: please always set batch_size to 1 when you are trining a genelize model, you can enlarge it when fine-tuning.
-
-*Checkpoint*: a pre-trained checkpint is included in `ckpts/mvsnerf-v0.tar`. 
-
-*Evaluation*: We also provide a rendering and quantity scipt  in `renderer.ipynb`, 
-and you can also use the run_batch.py if you want to testing or finetuning on different dataset. More results can be found from
-[Here](https://drive.google.com/drive/folders/1ko8OW38iDtj4fHvX0e3Wom9YvtJNTSXu?usp=sharing),
-please check your configuration if your rendering result looks absnormal.
-
-Rendering from the trained model should have result like this:
-
-![no-finetuned](https://user-images.githubusercontent.com/16453770/124207949-210b8300-db19-11eb-9ab9-610eff35395e.gif)
-
-## Finetuning
-### Blender
-<details>
-  <summary>Steps</summary>
-
-#### Data download
-
-Download `nerf_synthetic.zip` from [here](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1)
+Bash
 
 ```
-CUDA_VISIBLE_DEVICES=0  python train_mvs_nerf_finetuning_pl.py  \
-    --dataset_name blender --datadir /path/to/nerf_synthetic/lego \
-    --expname lego-ft  --with_rgb_loss  --batch_size 1024  \
-    --num_epochs 1 --imgScale_test 1.0 --white_bkgd  --pad 0 \
-    --ckpt ./ckpts/mvsnerf-v0.tar --N_vis 1
+python train_vggt_nerf_pl.py --config configs/vggt_general.txt
 ```
 
-</details>
+**Option B: Resume training or Load checkpoint** If you want to resume from a specific checkpoint, add the `--ckpt` argument:
 
-### LLFF
-<details>
-  <summary>Steps</summary>
-
-
-#### Data download
-
-Download `nerf_llff_data.zip` from [here](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1)
+Bash
 
 ```
-CUDA_VISIBLE_DEVICES=0  python train_mvs_nerf_finetuning_pl.py  \
-    --dataset_name llff --datadir /path/to/nerf_llff_data/{scene_name} \
-    --expname horns-ft  --with_rgb_loss  --batch_size 1024  \
-    --num_epochs 1 --imgScale_test 1.0  --pad 24 \
-    --ckpt ./ckpts/mvsnerf-v0.tar --N_vis 1
+python train_vggt_nerf_pl.py \
+    --config configs/vggt_general.txt \
+    --ckpt './runs_new/vggt_mvs_general_train_v1/ckpts/{epoch:02d}/last-v3.ckpt'
 ```
 
-</details>
+_Note: Replace `{epoch:02d}` with the actual epoch folder name if needed._
 
-### DTU
-<details>
-  <summary>Steps</summary>
+### 2. Fine-tuning
+
+To fine-tune the model on a specific scene (e.g., Scan 2) for higher quality reconstruction.
+
+Bash
 
 ```
-CUDA_VISIBLE_DEVICES=0  python train_mvs_nerf_finetuning_pl.py  \
-    --dataset_name dtu_ft --datadir /path/to/DTU/mvs_training/dtu/scan1 \
-    --expname scan1-ft  --with_rgb_loss  --batch_size 1024  \
-    --num_epochs 1 --imgScale_test 1.0   --pad 24 \
-    --ckpt ./ckpts/mvsnerf-v0.tar --N_vis 1
+python train_vggt_nerf_finetuning_pl.py \
+    --config configs/vggt_finetune.txt \
+    --datadir ./data/dtu/scan2
 ```
 
-</details>
+- **--datadir**: Change this path to fine-tune on different scans (e.g., `./data/dtu/scan4`).
+    
+- **--config**: Configuration for fine-tuning is loaded from `configs/vggt_finetune.txt`.
 
-## Rendering
-After training or finetuning, you can render free-viewpoint videos
-with the `renderer-video.ipynb`. if you want to use your own data,
-please using the right hand coordinate system (intrinsic, nearfar and extrinsic either with
-camera to world or world to camera in opencv format) and modify the rendering scipts.
+## Rendering & Visualization
 
-After 10k iterations (~ 15min), you should have videos like this:
+After training or fine-tuning, you can use the provided notebooks or scripts to render videos.
 
-![finetuned](https://user-images.githubusercontent.com/16453770/124207013-15b75800-db17-11eb-8d96-e8dbe4181c98.gif)
-
-
+- Use `renderer_video.ipynb` to generate free-viewpoint videos.
 ## Citation
-If you find our code or paper helps, please consider citing:
+
+If you use this code, please consider citing the original MVSNeRF paper and the VGGT project:
+
+Code snippet
+
 ```
 @article{chen2021mvsnerf,
   title={MVSNeRF: Fast Generalizable Radiance Field Reconstruction from Multi-View Stereo},
@@ -148,21 +133,41 @@ If you find our code or paper helps, please consider citing:
 }
 ```
 
-Big thanks to [**CasMVSNet_pl**](https://github.com/kwea123/CasMVSNet_pl), our code is partially
-borrowing from them.
+## Acknowledgements
 
-## Relevant Works
-[**MVSNet: Depth Inference for Unstructured Multi-view Stereo (ECCV 2018)**](https://arxiv.org/abs/1804.02505)<br>
-Yao Yao, Zixin Luo, Shiwei Li, Tian Fang, Long Quan
+This code is built upon [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for their excellent work.
 
-[**Cascade Cost Volume for High-Resolution Multi-View Stereo and Stereo Matching (CVPR 2020)**](https://arxiv.org/abs/1912.06378)<br>
-Xiaodong Gu, Zhiwen Fan, Zuozhuo Dai, Siyu Zhu, Feitong Tan, Ping Tan
+## Development Log & Technical Reflections (项目开发日志与思考)
 
-[**NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis (ECCV 2020)**](http://www.matthewtancik.com/nerf)<br>
-Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, Ren Ng
+This project is not just a reproduction of MVSNeRF, but an exploration of introducing Transformer-based features (VGGT) into the NeRF pipeline. Below is a summary of our development process, architectural decisions, and the lessons learned from failed experiments.
 
-[**IBRNet: Learning Multi-View Image-Based Rendering (CVPR 2021)**](https://ibrnet.github.io/)<br>
-Qianqian Wang, Zhicheng Wang, Kyle Genova, Pratul Srinivasan, Howard Zhou, Jonathan T. Barron, Ricardo Martin-Brualla, Noah Snavely, Thomas Funkhouser
+### 1. The Core Pipeline & Innovation
+Our initial goal was to enhance the generalizability of NeRF by replacing standard CNN features with **VGGT (Visual Geometry Grounded Transformer)** features.
+* **Pipeline:** `Images -> VGGT Feature Extraction -> 3D Projection -> NeRF MLP -> RGB & Density (σ)`.
+* **Innovation:** unlike MVSNeRF which relies on local CNN features, VGGT introduces global attention mechanisms. This allows the model to "hallucinate" correct geometry in textureless regions (e.g., white walls or tables) by attending to global context, solving the "holes" and "noise" problems often seen in MVS methods.
 
-[**PixelNeRF: Neural Radiance Fields from One or Few Images (CVPR 2021)**](https://alexyu.net/pixelnerf/)<br>
-Alex Yu, Vickie Ye, Matthew Tancik, Angjoo Kanazawa
+### 2. The Struggle: Speed vs. Accuracy (Exploration of Loss Calculation)
+During development, we faced a major bottleneck: **Ray-Casting is slow**. To solve this, we explored two different paradigms for loss calculation:
+
+#### Phase 1: The "Shortcut" Attempt (3D Point Regression)
+In an attempt to speed up training and bypass the heavy computation of volumetric rendering, we tried a radical **Direct 3D Point Regression** strategy:
+* **Idea:** Directly predict the RGB and $\sigma$ of a 3D point without ray integration.
+* **Result:** **Failed.** The model failed to converge on large scenes (BlendedMVS/DTU).
+* **Failure Analysis:**
+    1.  **Inefficient Sampling:** In large scenes, the valid surface occupies a tiny fraction of the 3D bounding box. Random sampling mostly hits "empty space," leading to severe class imbalance (too many negatives).
+    2.  **Lack of Physical Constraints:** Ray-casting (Volumetric Rendering) implicitly models occlusion via transmittance ($T_i$). Without this integral, the network cannot distinguish between a point on the surface and a point hidden behind it.
+    3.  **Projection Ambiguity:** A point in empty space (air) still projects to a valid pixel on the 2D feature map. Without the ray-marching constraint, the network confusingly maps "empty space coordinates" to "strong image features," leading to geometric collapse.
+
+#### Phase 2: Return to Ray-Casting (The Correct Path)
+We realized that the **Volumetric Rendering Equation** is not just a rendering technique, but a necessary physical constraint for learning 3D geometry from 2D images.
+* We reverted to the standard **Ray-Casting** pipeline.
+* **Optimization:** Although slower, this method ensures that the gradient back-propagates correctly through the accumulated transmittance, allowing the network to learn accurate depth and occlusion relationships.
+
+### 3. Challenges & Solutions
+* **Generalization vs. Speed:** We initially underestimated the difficulty of training a generalizable model on limited hardware. The "shortcut" (Point Regression) taught us that **geometry priors cannot be skipped**.
+* **Feature Alignment:** Mapping 3D points to VGGT's Transformer features required careful handling of projection matrices to ensure the attention mechanism focused on the relevant geometric structures.
+
+### 4. Lessons Learned
+1.  **Respect the Physics:** In NeRF-like tasks, the integral process (ray-marching) is crucial. It provides the necessary "occlusion prior" that direct regression lacks.
+2.  **Sampling Matters:** For 3D learning, *where* you sample is as important as *what* you learn. The sparsity of 3D space is a major challenge that requires strategies like hierarchical sampling (which MVSNeRF uses) rather than brute-force random sampling.
+3.  **Transformers Need Grounding:** VGGT is powerful, but only when firmly grounded in the physical rendering process.
